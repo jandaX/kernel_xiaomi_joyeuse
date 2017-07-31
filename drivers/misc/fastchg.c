@@ -27,11 +27,7 @@
 #include <linux/string.h>
 #include <linux/module.h>
 
-<<<<<<< HEAD
-int force_fast_charge = 1;
-=======
 int force_fast_charge = 0;
->>>>>>> 0bb300462c983bffce2bd7ef8055f15ff520bda4
 
 static int __init get_fastcharge_opt(char *ffc)
 {
