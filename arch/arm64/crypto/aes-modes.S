@@ -189,21 +189,6 @@ AES_ENTRY(aes_ctr_encrypt)
 .LctrloopNx:
 	subs		w4, w4, #4
 	bmi		.Lctr1x
-#if INTERLEAVE == 2
-	mov		v0.8b, v4.8b
-	mov		v1.8b, v4.8b
-	rev		x7, x6
-	add		x6, x6, #1
-	ins		v0.d[1], x7
-	rev		x7, x6
-	add		x6, x6, #1
-	ins		v1.d[1], x7
-	ld1		{v2.16b-v3.16b}, [x1], #32	/* get 2 input blocks */
-	do_encrypt_block2x
-	eor		v0.16b, v0.16b, v2.16b
-	eor		v1.16b, v1.16b, v3.16b
-	st1		{v0.16b-v1.16b}, [x0], #32
-#else
 	ldr		q8, =0x30000000200000001	/* addends 1,2,3[,0] */
 	dup		v7.4s, w6
 	mov		v0.16b, v4.16b
