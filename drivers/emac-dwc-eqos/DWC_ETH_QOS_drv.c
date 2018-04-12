@@ -5719,7 +5719,7 @@ static int DWC_ETH_QOS_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 	}
 #endif
 
-	spin_lock(&pdata->lock);
+	mutex_lock(&pdata->mlock);
 	switch (cmd) {
 	case SIOCGMIIPHY:
 		data->phy_id = pdata->phyaddr;
@@ -5772,7 +5772,7 @@ static int DWC_ETH_QOS_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 		ret = -EOPNOTSUPP;
 		dev_alert(&pdata->pdev->dev, "Unsupported IOCTL call\n");
 	}
-	spin_unlock(&pdata->lock);
+	mutex_unlock(&pdata->mlock);
 
 	DBGPR("<--DWC_ETH_QOS_ioctl\n");
 
