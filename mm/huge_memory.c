@@ -2198,6 +2198,7 @@ void __split_huge_pmd(struct vm_area_struct *vma, pmd_t *pmd,
 	struct mm_struct *mm = vma->vm_mm;
 	unsigned long haddr = address & HPAGE_PMD_MASK;
 	bool do_unlock_page = false;
+	bool was_locked = false;
 	pmd_t _pmd;
 
 	mmu_notifier_invalidate_range_start(mm, haddr, haddr + HPAGE_PMD_SIZE);
@@ -2210,6 +2211,7 @@ void __split_huge_pmd(struct vm_area_struct *vma, pmd_t *pmd,
 	VM_BUG_ON(freeze && !page);
 	if (page) {
 		VM_WARN_ON_ONCE(!PageLocked(page));
+		was_locked = true;
 		if (page != pmd_page(*pmd))
 			goto out;
 	}
@@ -2226,22 +2228,21 @@ repeat:
 			 * calls __split_huge_pmd() while i_mmap_lock is held.
 			 */
 			if (PageAnon(page)) {
-				if (unlikely(!trylock_page(page))) {
-					get_page(page);
-					_pmd = *pmd;
-					spin_unlock(ptl);
-					lock_page(page);
-					spin_lock(ptl);
-					if (unlikely(!pmd_same(*pmd, _pmd))) {
-						unlock_page(page);
-						put_page(page);
-						page = NULL;
-						goto repeat;
-					}
+			if (unlikely(!trylock_page(page))) {
+				get_page(page);
+				_pmd = *pmd;
+				spin_unlock(ptl);
+				lock_page(page);
+				spin_lock(ptl);
+				if (unlikely(!pmd_same(*pmd, _pmd))) {
+					unlock_page(page);
 					put_page(page);
+					page = NULL;
+					goto repeat;
 				}
-				do_unlock_page = true;
+				put_page(page);
 			}
+                        do_unlock_page = true;
 		}
 		if (PageMlocked(page))
 			clear_page_mlock(page);
@@ -2250,7 +2251,7 @@ repeat:
 	__split_huge_pmd_locked(vma, pmd, haddr, freeze);
 out:
 	spin_unlock(ptl);
-	if (do_unlock_page)
+	if (!was_locked && page)
 		unlock_page(page);
 	mmu_notifier_invalidate_range_end(mm, haddr, haddr + HPAGE_PMD_SIZE);
 }
