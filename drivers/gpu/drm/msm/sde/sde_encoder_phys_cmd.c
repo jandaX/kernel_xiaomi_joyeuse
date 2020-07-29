@@ -1373,6 +1373,7 @@ static int sde_encoder_phys_cmd_prepare_for_kickoff(
 	SDE_EVT32(DRMID(phys_enc->parent), phys_enc->hw_pp->idx - PINGPONG_0,
 			atomic_read(&phys_enc->pending_kickoff_cnt),
 			atomic_read(&cmd_enc->autorefresh.kickoff_cnt));
+	phys_enc->frame_trigger_mode = params->frame_trigger_mode;
 
 	/*
 	 * Mark kickoff request as outstanding. If there are more than one,
@@ -1502,16 +1503,38 @@ static int sde_encoder_phys_cmd_wait_for_commit_done(
 	cmd_enc = to_sde_encoder_phys_cmd(phys_enc);
 
 	/* only required for master controller */
-	if (sde_encoder_phys_cmd_is_master(phys_enc))
-		rc = _sde_encoder_phys_cmd_wait_for_ctl_start(phys_enc);
+	if (sde_encoder_phys_cmd_is_master(phys_enc)) {
+		rc = _sde_encoder_phys_cmd_wait_for_wr_ptr(phys_enc);
+		if (rc == -ETIMEDOUT)
+			goto wait_for_idle;
 
-	if (!rc && sde_encoder_phys_cmd_is_master(phys_enc) &&
-			cmd_enc->autorefresh.cfg.enable)
-		rc = _sde_encoder_phys_cmd_wait_for_autorefresh_done(phys_enc);
+		if (cmd_enc->autorefresh.cfg.enable)
+			rc = _sde_encoder_phys_cmd_wait_for_autorefresh_done(
+						phys_enc);
+	}
 
-	/* required for both controllers */
-	if (!rc && cmd_enc->serialize_wait4pp)
-		sde_encoder_phys_cmd_prepare_for_kickoff(phys_enc, NULL);
+	/* wait for posted start or serialize trigger */
+	if ((atomic_read(&phys_enc->pending_kickoff_cnt) > 1) ||
+		(!rc && phys_enc->frame_trigger_mode ==
+				FRAME_DONE_WAIT_SERIALIZE))
+		goto wait_for_idle;
+
+wait_for_idle:
+	pending_cnt = atomic_read(&phys_enc->pending_kickoff_cnt);
+	for (i = 0; i < pending_cnt; i++)
+		rc |= sde_encoder_wait_for_event(phys_enc->parent,
+				MSM_ENC_TX_COMPLETE);
+	if (rc) {
+		SDE_EVT32(DRMID(phys_enc->parent),
+			phys_enc->hw_pp->idx - PINGPONG_0,
+			phys_enc->frame_trigger_mode,
+			atomic_read(&phys_enc->pending_kickoff_cnt),
+			phys_enc->enable_state, rc);
+		SDE_ERROR("pp:%d failed wait_for_idle: %d\n",
+			phys_enc->hw_pp->idx - PINGPONG_0, rc);
+		if (phys_enc->enable_state == SDE_ENC_ERR_NEEDS_HW_RESET)
+			sde_encoder_helper_needs_hw_reset(phys_enc->parent);
+	}
 
 	return rc;
 }
