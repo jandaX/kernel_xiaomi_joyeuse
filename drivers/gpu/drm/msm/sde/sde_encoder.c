@@ -2696,16 +2696,8 @@ static int sde_encoder_resource_control(struct drm_encoder *drm_enc,
 					SDE_EVTLOG_ERROR);
 			mutex_unlock(&sde_enc->rc_lock);
 			return 0;
-		}
-
-		/*
-		 * if we are in ON but a frame was just kicked off,
-		 * ignore the IDLE event, it's probably a stale timer event
-		 */
-		if (sde_enc->frame_busy_mask[0]) {
-			SDE_ERROR_ENC(sde_enc,
-					"sw_event:%d, rc:%d frame pending\n",
-					sw_event, sde_enc->rc_state);
+		} else if (sde_crtc_frame_pending(sde_enc->crtc) > 1) {
+			SDE_DEBUG_ENC(sde_enc, "skip idle entry");
 			SDE_EVT32(DRMID(drm_enc), sw_event, sde_enc->rc_state,
 					SDE_EVTLOG_ERROR);
 			mutex_unlock(&sde_enc->rc_lock);
