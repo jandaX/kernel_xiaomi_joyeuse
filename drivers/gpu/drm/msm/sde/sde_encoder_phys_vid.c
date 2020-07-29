@@ -597,8 +597,7 @@ static void sde_encoder_phys_vid_vblank_irq(void *arg, int irq_idx)
 	if (sde_encoder_phys_vid_is_master(phys_enc)) {
 		if (atomic_add_unless(&phys_enc->pending_retire_fence_cnt,
 					-1, 0))
-			event |= SDE_ENCODER_FRAME_EVENT_DONE |
-				SDE_ENCODER_FRAME_EVENT_SIGNAL_RETIRE_FENCE |
+			event |= SDE_ENCODER_FRAME_EVENT_SIGNAL_RETIRE_FENCE |
 				SDE_ENCODER_FRAME_EVENT_SIGNAL_RELEASE_FENCE;
 	}
 
@@ -948,19 +947,12 @@ static int _sde_encoder_phys_vid_wait_for_vblank(
 {
 	struct sde_encoder_wait_info wait_info;
 	int ret = 0;
-	u32 event = 0, event_helper = 0;
+	u32 event = 0;
+	u32 event_helper = 0;
 
 	if (!phys_enc) {
 		pr_err("invalid encoder\n");
 		return -EINVAL;
-	}
-
-	if (!sde_encoder_phys_vid_is_master(phys_enc)) {
-		/* signal done for slave video encoder, unless it is pp-split */
-		if (!_sde_encoder_phys_is_ppsplit(phys_enc) && notify) {
-			event = SDE_ENCODER_FRAME_EVENT_DONE;
-			goto end;
-		}
 	}
 
 	wait_info.wq = &phys_enc->pending_kickoff_wq;
@@ -983,11 +975,15 @@ static int _sde_encoder_phys_vid_wait_for_vblank(
 	event_helper = SDE_ENCODER_FRAME_EVENT_SIGNAL_RELEASE_FENCE
 			| SDE_ENCODER_FRAME_EVENT_SIGNAL_RETIRE_FENCE;
 
-	if (notify && (ret == -ETIMEDOUT)) {
-		event = SDE_ENCODER_FRAME_EVENT_ERROR;
-		if (atomic_add_unless(&phys_enc->pending_retire_fence_cnt,
-				-1, 0))
-			event |= event_helper;
+	if (notify) {
+		if (ret == -ETIMEDOUT) {
+			event = SDE_ENCODER_FRAME_EVENT_ERROR;
+			if (atomic_add_unless(
+				&phys_enc->pending_retire_fence_cnt, -1, 0))
+				event |= event_helper;
+		} else if (!ret) {
+			event = SDE_ENCODER_FRAME_EVENT_DONE;
+		}
 	}
 
 end:
