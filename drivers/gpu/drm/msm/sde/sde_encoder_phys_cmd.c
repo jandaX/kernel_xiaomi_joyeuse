@@ -230,6 +230,23 @@ static void sde_encoder_phys_cmd_pp_tx_done_irq(void *arg, int irq_idx)
 	SDE_EVT32_IRQ(DRMID(phys_enc->parent),
 			phys_enc->hw_pp->idx - PINGPONG_0, new_cnt, event);
 
+	/*
+	 * Reduce the refcount for the retire fence as well as for the ctl_start
+	 * if the counters are greater than zero. Signal retire fence if there
+	 * was a retire fence count pending and kickoff count is zero.
+	 */
+	if (sde_encoder_phys_cmd_is_master(phys_enc) && (new_cnt == 0)) {
+		while (atomic_add_unless(&phys_enc->pending_retire_fence_cnt,
+			 -1, 0)) {
+			if (phys_enc->parent_ops.handle_frame_done)
+				phys_enc->parent_ops.handle_frame_done(
+					phys_enc->parent, phys_enc,
+				SDE_ENCODER_FRAME_EVENT_SIGNAL_RETIRE_FENCE);
+			atomic_add_unless(&phys_enc->pending_ctlstart_cnt,
+				-1, 0);
+		}
+	}
+
 	/* Signal any waiting atomic commit thread */
 	wake_up_all(&phys_enc->pending_kickoff_wq);
 	SDE_ATRACE_END("pp_done_irq");
@@ -552,6 +569,17 @@ static int _sde_encoder_phys_cmd_handle_ppdone_timeout(
 
 	cmd_enc->pp_timeout_report_cnt++;
 	pending_kickoff_cnt = atomic_read(&phys_enc->pending_kickoff_cnt);
+
+	if (sde_encoder_phys_cmd_is_master(phys_enc)) {
+		 /* trigger the retire fence if it was missed */
+		if (atomic_add_unless(&phys_enc->pending_retire_fence_cnt,
+				-1, 0))
+			phys_enc->parent_ops.handle_frame_done(
+				phys_enc->parent,
+				phys_enc,
+				SDE_ENCODER_FRAME_EVENT_SIGNAL_RETIRE_FENCE);
+		atomic_add_unless(&phys_enc->pending_ctlstart_cnt, -1, 0);
+	}
 
 	SDE_EVT32(DRMID(phys_enc->parent), phys_enc->hw_pp->idx - PINGPONG_0,
 			cmd_enc->pp_timeout_report_cnt,
@@ -1368,7 +1396,6 @@ static int sde_encoder_phys_cmd_prepare_for_kickoff(
 	SDE_EVT32(DRMID(phys_enc->parent), phys_enc->hw_pp->idx - PINGPONG_0,
 			atomic_read(&phys_enc->pending_kickoff_cnt),
 			atomic_read(&cmd_enc->autorefresh.kickoff_cnt));
-	phys_enc->frame_trigger_mode = params->frame_trigger_mode;
 
 	/*
 	 * Mark kickoff request as outstanding. If there are more than one,
@@ -1445,19 +1472,25 @@ static int _sde_encoder_phys_cmd_wait_for_ctl_start(
 		else
 			ret = 0;
 
-		/*
-		 * Signaling the retire fence at wr_ptr timeout
-		 * to allow the next commit and avoid device freeze.
-		 * As wr_ptr timeout can occurs due to no read ptr,
-		 * updating pending_rd_ptr_cnt here may not cover all
-		 * cases. Hence signaling the retire fence.
-		 */
-		if (sde_encoder_phys_cmd_is_master(phys_enc) &&
-			atomic_add_unless(&phys_enc->pending_retire_fence_cnt,
-				-1, 0))
-			phys_enc->parent_ops.handle_frame_done(
-				phys_enc->parent, phys_enc,
-				SDE_ENCODER_FRAME_EVENT_SIGNAL_RETIRE_FENCE);
+		if (sde_encoder_phys_cmd_is_master(phys_enc)) {
+			/*
+			 * Signaling the retire fence at ctl start timeout
+			 * to allow the next commit and avoid device freeze.
+			 * As ctl start timeout can occurs due to no read ptr,
+			 * updating pending_rd_ptr_cnt here may not cover all
+			 * cases. Hence signaling the retire fence.
+			 */
+			if (atomic_add_unless(
+			 &phys_enc->pending_retire_fence_cnt, -1, 0))
+				phys_enc->parent_ops.handle_frame_done(
+				 phys_enc->parent,
+				 phys_enc,
+				 SDE_ENCODER_FRAME_EVENT_SIGNAL_RETIRE_FENCE);
+			atomic_add_unless(
+				&phys_enc->pending_ctlstart_cnt, -1, 0);
+			atomic_inc_return(&phys_enc->ctlstart_timeout);
+		}
+
 	} else if ((ret == 0) &&
 	  (phys_enc->frame_trigger_mode == FRAME_DONE_WAIT_POSTED_START) &&
 	  atomic_read(&phys_enc->pending_kickoff_cnt) &&
@@ -1509,7 +1542,7 @@ static int sde_encoder_phys_cmd_wait_for_commit_done(
 
 	/* only required for master controller */
 	if (sde_encoder_phys_cmd_is_master(phys_enc))
-		rc = _sde_encoder_phys_cmd_wait_for_wr_ptr(phys_enc);
+		rc = _sde_encoder_phys_cmd_wait_for_ctl_start(phys_enc);
 
 	if (!rc && sde_encoder_phys_cmd_is_master(phys_enc) &&
 			cmd_enc->autorefresh.cfg.enable)
