@@ -391,8 +391,6 @@ struct sde_encoder_phys_cmd_autorefresh {
  * @rd_ptr_timestamp: last rd_ptr_irq timestamp
  * @pending_vblank_cnt: Atomic counter tracking pending wait for VBLANK
  * @pending_vblank_wq: Wait queue for blocking until VBLANK received
- * @ctl_start_threshold: A threshold in microseconds allows command mode
- *   engine to trigger the retire fence without waiting for rd_ptr.
  */
 struct sde_encoder_phys_cmd {
 	struct sde_encoder_phys base;
@@ -404,7 +402,6 @@ struct sde_encoder_phys_cmd {
 	ktime_t rd_ptr_timestamp;
 	atomic_t pending_vblank_cnt;
 	wait_queue_head_t pending_vblank_wq;
-	u32 ctl_start_threshold;
 };
 
 /**

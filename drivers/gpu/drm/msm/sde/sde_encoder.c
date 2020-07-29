@@ -3681,8 +3681,8 @@ static void sde_encoder_frame_done_callback(
 
 		/* One of the physical encoders has become idle */
 		for (i = 0; i < sde_enc->num_phys_encs; i++) {
-			if (sde_enc->phys_encs[i] == ready_phys) {
-				clear_bit(i, sde_enc->frame_busy_mask);
+			if ((sde_enc->phys_encs[i] == ready_phys) ||
+				(event & SDE_ENCODER_FRAME_EVENT_ERROR)) {
 				SDE_EVT32_VERBOSE(DRMID(drm_enc), i,
 					sde_enc->frame_busy_mask[0]);
 			}
