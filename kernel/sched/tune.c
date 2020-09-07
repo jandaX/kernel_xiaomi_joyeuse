@@ -579,6 +579,9 @@ prefer_idle_read(struct cgroup_subsys_state *css, struct cftype *cft)
 
 	struct schedtune *st = css_st(css);
 
+	if (is_battery_saver_on())
+		return 0;
+
 	return st->prefer_idle;
 }
 
@@ -599,6 +602,9 @@ boost_read(struct cgroup_subsys_state *css, struct cftype *cft)
 		return 0;
 
 	struct schedtune *st = css_st(css);
+
+	if (is_battery_saver_on())
+		return 0;
 
 	return st->boost;
 }
