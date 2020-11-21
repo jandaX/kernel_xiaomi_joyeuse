@@ -704,6 +704,7 @@ int __init f2fs_init_sysfs(void)
 		f2fs_proc_root = proc_mkdir("fs/f2fs", NULL);
 	}
 	return ret;
+     }
 }
 
 void f2fs_exit_sysfs(void)
