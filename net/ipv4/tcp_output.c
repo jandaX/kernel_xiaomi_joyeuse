@@ -1478,24 +1478,18 @@ void tcp_mtup_init(struct sock *sk)
 EXPORT_SYMBOL(tcp_mtup_init);
 
 /* This function synchronize snd mss to current pmtu/exthdr set.
-
    tp->rx_opt.user_mss is mss set by user by TCP_MAXSEG. It does NOT counts
    for TCP options, but includes only bare TCP header.
-
    tp->rx_opt.mss_clamp is mss negotiated at connection setup.
    It is minimum of user_mss and mss received with SYN.
    It also does not include TCP options.
-
    inet_csk(sk)->icsk_pmtu_cookie is last pmtu, seen by this function.
-
    tp->mss_cache is current effective sending mss, including
    all tcp options except for SACKs. It is evaluated,
    taking into account current pmtu, but never exceeds
    tp->rx_opt.mss_clamp.
-
    NOTE1. rfc1122 clearly states that advertised MSS
    DOES NOT include either tcp or ip options.
-
    NOTE2. inet_csk(sk)->icsk_pmtu_cookie and tp->mss_cache
    are READ ONLY outside this function.		--ANK (980731)
  */
@@ -2262,7 +2256,6 @@ void tcp_chrono_stop(struct sock *sk, const enum tcp_chrono type)
  *
  * Send at most one packet when push_one > 0. Temporarily ignore
  * cwnd limit to force at most one packet out when push_one == 2.
-
  * Returns true, if no segments are in flight and we have queued segments,
  * but cannot send anything now because of SWS or another problem.
  */

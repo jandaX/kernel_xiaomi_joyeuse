@@ -218,8 +218,10 @@ const char *ipa_clients_strings[IPA_CLIENT_MAX] = {
 	__stringify(RESERVERD_CONS_103),
 	__stringify(IPA_CLIENT_MHI_LOW_LAT_PROD),
 	__stringify(IPA_CLIENT_MHI_LOW_LAT_CONS),
-	__stringify(RESERVERD_PROD_106),
+	__stringify(IPA_CLIENT_QDSS_PROD),
 	__stringify(IPA_CLIENT_MHI_QDSS_CONS),
+	__stringify(RESERVERD_PROD_108),
+	__stringify(IPA_CLIENT_WLAN2_CONS1),
 };
 
 /**
@@ -3499,12 +3501,13 @@ int ipa_conn_wdi_pipes(struct ipa_wdi_conn_in_params *in,
 /**
  * ipa_disconn_wdi_pipes() - disconnect wdi pipes
  */
-int ipa_disconn_wdi_pipes(int ipa_ep_idx_tx, int ipa_ep_idx_rx)
+int ipa_disconn_wdi_pipes(int ipa_ep_idx_tx, int ipa_ep_idx_rx,
+	int ipa_ep_idx_tx1)
 {
 	int ret;
 
 	IPA_API_DISPATCH_RETURN(ipa_disconn_wdi_pipes, ipa_ep_idx_tx,
-		ipa_ep_idx_rx);
+		ipa_ep_idx_rx, ipa_ep_idx_tx1);
 
 	return ret;
 }
@@ -3512,12 +3515,13 @@ int ipa_disconn_wdi_pipes(int ipa_ep_idx_tx, int ipa_ep_idx_rx)
 /**
  * ipa_enable_wdi_pipes() - enable wdi pipes
  */
-int ipa_enable_wdi_pipes(int ipa_ep_idx_tx, int ipa_ep_idx_rx)
+int ipa_enable_wdi_pipes(int ipa_ep_idx_tx, int ipa_ep_idx_rx,
+	int ipa_ep_idx_tx1)
 {
 	int ret;
 
 	IPA_API_DISPATCH_RETURN(ipa_enable_wdi_pipes, ipa_ep_idx_tx,
-		ipa_ep_idx_rx);
+		ipa_ep_idx_rx, ipa_ep_idx_tx1);
 
 	return ret;
 }
@@ -3525,12 +3529,13 @@ int ipa_enable_wdi_pipes(int ipa_ep_idx_tx, int ipa_ep_idx_rx)
 /**
  * ipa_disable_wdi_pipes() - disable wdi pipes
  */
-int ipa_disable_wdi_pipes(int ipa_ep_idx_tx, int ipa_ep_idx_rx)
+int ipa_disable_wdi_pipes(int ipa_ep_idx_tx, int ipa_ep_idx_rx,
+	int ipa_ep_idx_tx1)
 {
 	int ret;
 
 	IPA_API_DISPATCH_RETURN(ipa_disable_wdi_pipes, ipa_ep_idx_tx,
-		ipa_ep_idx_rx);
+		ipa_ep_idx_rx, ipa_ep_idx_tx1);
 
 	return ret;
 }
@@ -3717,6 +3722,33 @@ bool ipa_pm_is_used(void)
 
 	return ret;
 }
+
+/**
+ * ipa_conn_qdss_pipes() - connect qdss pipes
+ */
+int ipa_qdss_conn_pipes(struct ipa_qdss_conn_in_params *in,
+	struct ipa_qdss_conn_out_params *out)
+{
+	int ret;
+
+	IPA_API_DISPATCH_RETURN(ipa_conn_qdss_pipes, in, out);
+
+	return ret;
+}
+EXPORT_SYMBOL(ipa_qdss_conn_pipes);
+
+/**
+ * ipa_disconn_qdss_pipes() - disconnect qdss pipes
+ */
+int ipa_qdss_disconn_pipes(void)
+{
+	int ret;
+
+	IPA_API_DISPATCH_RETURN(ipa_disconn_qdss_pipes);
+
+	return ret;
+}
+EXPORT_SYMBOL(ipa_qdss_disconn_pipes);
 
 static const struct dev_pm_ops ipa_pm_ops = {
 	.suspend_noirq = ipa_ap_suspend,

@@ -918,9 +918,12 @@ void ipa3_release_wdi3_gsi_smmu_mappings(u8 dir)
 	struct ipa_smmu_cb_ctx *cb = ipa3_get_smmu_ctx(IPA_SMMU_CB_AP);
 	int i, j, start, end;
 
-	if (dir == IPA_WDI3_TX_DIR) {
-		start = IPA_WDI_TX_RING_RES;
-		end = IPA_WDI_TX_DB_RES;
+	if ((dir == IPA_WDI3_TX_DIR) || (dir == IPA_WDI3_TX1_DIR)) {
+		start = (dir == IPA_WDI3_TX_DIR) ?
+					IPA_WDI_TX_RING_RES :
+					IPA_WDI_TX1_RING_RES;
+		end = (dir == IPA_WDI3_TX_DIR) ?
+					IPA_WDI_TX_DB_RES : IPA_WDI_TX1_DB_RES;
 	} else {
 		start = IPA_WDI_RX_RING_RES;
 		end = IPA_WDI_RX_COMP_RING_WP_RES;
@@ -978,6 +981,8 @@ int ipa_create_gsi_smmu_mapping(int res_idx, bool wlan_smmu_en,
 		case IPA_WDI_RX_COMP_RING_WP_RES:
 		case IPA_WDI_CE_DB_RES:
 		case IPA_WDI_TX_DB_RES:
+		case IPA_WDI_CE1_DB_RES:
+		case IPA_WDI_TX1_DB_RES:
 			if (ipa_create_ap_smmu_mapping_pa(pa, len,
 				(res_idx == IPA_WDI_CE_DB_RES) ? true : false,
 						iova)) {
@@ -991,6 +996,8 @@ int ipa_create_gsi_smmu_mapping(int res_idx, bool wlan_smmu_en,
 		case IPA_WDI_RX_COMP_RING_RES:
 		case IPA_WDI_TX_RING_RES:
 		case IPA_WDI_CE_RING_RES:
+		case IPA_WDI_TX1_RING_RES:
+		case IPA_WDI_CE1_RING_RES:
 			if (ipa_create_ap_smmu_mapping_sgt(sgt, iova)) {
 				IPAERR("Fail to create mapping res %d\n",
 						res_idx);
@@ -2180,6 +2187,7 @@ int ipa3_enable_gsi_wdi_pipe(u32 clnt_hdl)
 	struct ipa3_ep_context *ep;
 	struct ipa_ep_cfg_ctrl ep_cfg_ctrl;
 	int ipa_ep_idx;
+	struct ipa_ep_cfg_holb holb_cfg;
 
 	IPADBG("ep=%d\n", clnt_hdl);
 
@@ -2199,6 +2207,16 @@ int ipa3_enable_gsi_wdi_pipe(u32 clnt_hdl)
 
 	memset(&ep_cfg_ctrl, 0, sizeof(struct ipa_ep_cfg_ctrl));
 	ipa3_cfg_ep_ctrl(ipa_ep_idx, &ep_cfg_ctrl);
+
+	if (IPA_CLIENT_IS_CONS(ep->client)) {
+		memset(&holb_cfg, 0, sizeof(holb_cfg));
+		holb_cfg.en = IPA_HOLB_TMR_EN;
+		if (ipa3_ctx->ipa_hw_type == IPA_HW_v4_2)
+			holb_cfg.tmr_val = IPA_HOLB_TMR_VAL;
+
+		result = ipa3_cfg_ep_holb(clnt_hdl, &holb_cfg);
+	}
+
 
 	IPA_ACTIVE_CLIENTS_DEC_EP(ipa3_get_client_mapping(clnt_hdl));
 	ep->gsi_offload_state |= IPA_WDI_ENABLED;

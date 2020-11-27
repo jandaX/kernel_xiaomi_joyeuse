@@ -1538,19 +1538,19 @@ static int lct_check_hwversion()
 
 	//check project
 	switch(project_number) {
-	case 1: //curtana
+	case 1: //custa
 		if (major_number%10 == 3) // if (CN version)
 			ret = 0;
 		else
 			ret = -1;
 		break;
-	case 2: //excalibur
+	case 2: //custe
 		ret = -1;
 		break;
-	case 3: //durandal
+	case 3: //custd
 		ret = 0;
 		break;
-	case 4: //joyeuse
+	case 4: //custj
 		ret = 0;
 		break;
 	default:

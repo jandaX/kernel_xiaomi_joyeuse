@@ -2340,6 +2340,12 @@ static const struct ipa_ep_configuration ipa3_ep_mapping
 			IPA_DPS_HPS_SEQ_TYPE_INVALID,
 			QMB_MASTER_SELECT_DDR,
 			{ 24, 3, 8, 14, IPA_EE_AP, GSI_SMART_PRE_FETCH, 3 } },
+	[IPA_4_5][IPA_CLIENT_WLAN2_CONS1]          = {
+			true, IPA_v4_5_GROUP_UL_DL,
+			false,
+			IPA_DPS_HPS_SEQ_TYPE_INVALID,
+			QMB_MASTER_SELECT_DDR,
+			{ 27, 18, 8, 14, IPA_EE_AP, GSI_SMART_PRE_FETCH, 3 } },
 	[IPA_4_5][IPA_CLIENT_USB_CONS]            = {
 			true, IPA_v4_5_GROUP_UL_DL,
 			false,
@@ -2525,6 +2531,12 @@ static const struct ipa_ep_configuration ipa3_ep_mapping
 			IPA_DPS_HPS_SEQ_TYPE_2ND_PKT_PROCESS_PASS_NO_DEC_UCP,
 			QMB_MASTER_SELECT_PCIE,
 			{ 3, 5, 8, 16, IPA_EE_AP, GSI_SMART_PRE_FETCH, 3 } },
+	[IPA_4_5_MHI][IPA_CLIENT_QDSS_PROD] = {
+			true, IPA_v4_5_MHI_GROUP_QDSS,
+			false,
+			IPA_DPS_HPS_SEQ_TYPE_DMA_ONLY,
+			QMB_MASTER_SELECT_DDR,
+			{ 11, 14, 10, 16, IPA_EE_AP, GSI_ESCAPE_BUF_ONLY, 0 } },
 	/* Only for test purpose */
 	[IPA_4_5_MHI][IPA_CLIENT_TEST_PROD]           = {
 			true, QMB_MASTER_SELECT_DDR,
@@ -2611,6 +2623,12 @@ static const struct ipa_ep_configuration ipa3_ep_mapping
 			IPA_DPS_HPS_SEQ_TYPE_INVALID,
 			QMB_MASTER_SELECT_PCIE,
 			{ 22, 2, 5, 5, IPA_EE_AP, GSI_ESCAPE_BUF_ONLY, 0 } },
+	[IPA_4_5_MHI][IPA_CLIENT_ODL_DPL_CONS]		= {
+			true, IPA_v4_5_MHI_GROUP_DDR,
+			false,
+			IPA_DPS_HPS_SEQ_TYPE_INVALID,
+			QMB_MASTER_SELECT_DDR,
+			{ 22, 2, 5, 5, IPA_EE_AP, GSI_ESCAPE_BUF_ONLY, 0 } },
 	[IPA_4_5_MHI][IPA_CLIENT_MHI_LOW_LAT_CONS] = {
 			true, IPA_v4_5_MHI_GROUP_PCIE,
 			false,
@@ -2618,11 +2636,11 @@ static const struct ipa_ep_configuration ipa3_ep_mapping
 			QMB_MASTER_SELECT_PCIE,
 			{ 30, 6, 9, 9, IPA_EE_AP, GSI_SMART_PRE_FETCH, 4 } },
 	[IPA_4_5_MHI][IPA_CLIENT_MHI_QDSS_CONS] = {
-			true, IPA_v4_5_MHI_GROUP_PCIE,
+			true, IPA_v4_5_MHI_GROUP_QDSS,
 			false,
 			IPA_DPS_HPS_SEQ_TYPE_INVALID,
 			QMB_MASTER_SELECT_PCIE,
-			{ 24, 3, 8, 14, IPA_EE_AP, GSI_SMART_PRE_FETCH, 3 } },
+			{ 24, 3, 8, 14, IPA_EE_AP, GSI_ESCAPE_BUF_ONLY, 0 } },
 	/* Dummy consumer (pipe 31) is used in L2TP rt rule */
 	[IPA_4_5_MHI][IPA_CLIENT_DUMMY_CONS]          = {
 			true, QMB_MASTER_SELECT_DDR,
@@ -2905,8 +2923,8 @@ static struct ipa3_mem_partition ipa_4_5_mem_part = {
 	.uc_descriptor_ram_ofst	= 0x3800,
 	.uc_descriptor_ram_size	= 0x1000,
 	.pdn_config_ofst	= 0x4800,
-	.pdn_config_size	= 0x50,
-	.end_ofst		= 0x4850,
+	.pdn_config_size	= 0x100,
+	.end_ofst		= 0x4900,
 };
 
 
@@ -2949,6 +2967,7 @@ int ipa3_get_clients_from_rm_resource(
 		clients->names[i++] = IPA_CLIENT_WLAN1_CONS;
 		clients->names[i++] = IPA_CLIENT_WLAN2_CONS;
 		clients->names[i++] = IPA_CLIENT_WLAN3_CONS;
+		clients->names[i++] = IPA_CLIENT_WLAN2_CONS1;
 		break;
 	case IPA_RM_RESOURCE_MHI_CONS:
 		clients->names[i++] = IPA_CLIENT_MHI_CONS;
@@ -3026,6 +3045,7 @@ bool ipa3_should_pipe_be_suspended(enum ipa_client_type client)
 	    client == IPA_CLIENT_WLAN1_CONS   ||
 	    client == IPA_CLIENT_WLAN2_CONS   ||
 	    client == IPA_CLIENT_WLAN3_CONS   ||
+	    client == IPA_CLIENT_WLAN2_CONS1  ||
 	    client == IPA_CLIENT_WLAN4_CONS   ||
 	    client == IPA_CLIENT_ODU_EMB_CONS ||
 	    client == IPA_CLIENT_ODU_TETH_CONS ||
@@ -4966,6 +4986,78 @@ success:
 }
 
 /**
+ * ipa3_force_cfg_ep_holb() - IPA end-point holb configuration
+ *			for QDSS_MHI_CONS pipe
+ *
+ * If an IPA producer pipe is full, IPA HW by default will block
+ * indefinitely till space opens up. During this time no packets
+ * including those from unrelated pipes will be processed. Enabling
+ * HOLB means IPA HW will be allowed to drop packets as/when needed
+ * and indefinite blocking is avoided.
+ *
+ * @clnt_hdl:	[in] opaque client handle assigned by IPA to client
+ * @ipa_ep_cfg:	[in] IPA end-point configuration params
+ *
+ * Returns:	0 on success, negative on failure
+ */
+int ipa3_force_cfg_ep_holb(u32 clnt_hdl,
+	struct ipa_ep_cfg_holb *ep_holb)
+{
+	if (clnt_hdl >= ipa3_ctx->ipa_num_pipes ||
+		ep_holb == NULL) {
+		IPAERR("bad parm.\n");
+		return -EINVAL;
+	}
+
+	IPA_ACTIVE_CLIENTS_INC_EP(ipa3_get_client_mapping(clnt_hdl));
+
+	if (ep_holb->en == IPA_HOLB_TMR_DIS) {
+		ipahal_write_reg_n_fields(IPA_ENDP_INIT_HOL_BLOCK_EN_n,
+			clnt_hdl, ep_holb);
+		goto success;
+	}
+
+	/* Follow HPG sequence to DIS_HOLB, Configure Timer, and HOLB_EN */
+	if (ipa3_ctx->ipa_hw_type >= IPA_HW_v4_5) {
+		ep_holb->en = IPA_HOLB_TMR_DIS;
+		ipahal_write_reg_n_fields(IPA_ENDP_INIT_HOL_BLOCK_EN_n,
+			clnt_hdl, ep_holb);
+	}
+
+	if (ipa3_ctx->ipa_hw_type >= IPA_HW_v4_5) {
+		int res;
+
+		res = ipa3_process_timer_cfg(ep_holb->tmr_val * 1000,
+			&ep_holb->pulse_generator,
+			&ep_holb->scaled_time);
+		if (res) {
+			IPAERR("failed to process HOLB timer tmr=%u\n",
+				ep_holb->tmr_val);
+			ipa_assert();
+			return res;
+		}
+	}
+
+	ipahal_write_reg_n_fields(IPA_ENDP_INIT_HOL_BLOCK_TIMER_n,
+		clnt_hdl, ep_holb);
+
+	/* Enable HOLB */
+	ep_holb->en = IPA_HOLB_TMR_EN;
+	ipahal_write_reg_n_fields(IPA_ENDP_INIT_HOL_BLOCK_EN_n,
+		clnt_hdl, ep_holb);
+	/* IPA4.5 issue requires HOLB_EN to be written twice */
+	if (ipa3_ctx->ipa_hw_type >= IPA_HW_v4_5)
+		ipahal_write_reg_n_fields(IPA_ENDP_INIT_HOL_BLOCK_EN_n,
+			clnt_hdl, ep_holb);
+
+success:
+	IPA_ACTIVE_CLIENTS_DEC_EP(ipa3_get_client_mapping(clnt_hdl));
+	IPADBG("cfg holb %u ep=%d tmr=%d\n", ep_holb->en, clnt_hdl,
+		ep_holb->tmr_val);
+	return 0;
+}
+
+/**
  * ipa3_cfg_ep_holb_by_client() - IPA end-point holb configuration
  *
  * Wrapper function for ipa3_cfg_ep_holb() with client name instead of
@@ -6721,6 +6813,8 @@ int ipa3_bind_api_controller(enum ipa_hw_type ipa_hw_type,
 		ipa3_get_gsi_stats;
 	api_ctrl->ipa_get_prot_id =
 		ipa3_get_prot_id;
+	api_ctrl->ipa_conn_qdss_pipes = ipa3_conn_qdss_pipes;
+	api_ctrl->ipa_disconn_qdss_pipes = ipa3_disconn_qdss_pipes;
 	return 0;
 }
 
@@ -7413,6 +7507,13 @@ void ipa3_suspend_apps_pipes(bool suspend)
 		}
 		if (suspend)
 			ipa3_gsi_poll_after_suspend(ep);
+	}
+
+	/* ODL_DPL_CONS in CPE cfg & MHI_DPL_CONS for PCIE uses same ep */
+	if (ipa3_ctx->ipa_config_is_mhi &&
+			!ipa3_ctx->ipa_in_cpe_cfg) {
+		IPADBG("ODL DPS cons not valid for PCIe ep use case\n");
+		return;
 	}
 
 	ipa_ep_idx = ipa_get_ep_mapping(IPA_CLIENT_ODL_DPL_CONS);
@@ -8270,6 +8371,7 @@ int ipa3_get_prot_id(enum ipa_client_type client)
 		break;
 	case IPA_CLIENT_WLAN2_PROD:
 	case IPA_CLIENT_WLAN2_CONS:
+	case IPA_CLIENT_WLAN2_CONS1:
 		prot_id = IPA_HW_PROTOCOL_WDI3;
 		break;
 	case IPA_CLIENT_USB_PROD:
@@ -8339,4 +8441,27 @@ int ipa3_app_clk_vote(
 	IPADBG("Out\n");
 
 	return ret;
+}
+
+/**
+ * ipa3_get_max_pdn() - get max PDN number based on hardware version
+ *
+ * Returns:     IPA_MAX_PDN_NUM for IPAv4_5 and IPA_MAX_PDN_NUM_v4 for others
+ *
+ */
+
+int ipa3_get_max_pdn(void)
+{
+	int ipa_max_pdn = 0;
+
+	switch (ipa3_get_hw_type_index()) {
+	case IPA_4_5:
+		ipa_max_pdn = IPA_MAX_PDN_NUM;
+		break;
+	default:
+		ipa_max_pdn = IPA_MAX_PDN_NUM_v4;
+		break;
+
+	}
+	return ipa_max_pdn;
 }

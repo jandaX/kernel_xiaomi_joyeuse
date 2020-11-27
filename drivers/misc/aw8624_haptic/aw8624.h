@@ -412,7 +412,6 @@ struct aw8624 {
 #endif
 };
 
-/*2019.12.19 longcheer zhangjunwei1 start*/
 /*achieve the debug function*/
 #define VIB_DEBUG_EN  0
 #if VIB_DEBUG_EN
@@ -440,7 +439,6 @@ struct aw8624 {
 #define VIB_ERROR(fmt, args...) do { \
     printk(KERN_ERR "[AWINIC_HAPTIC/E]%s:"fmt"\n", __func__, ##args); \
 } while (0)
-/*2019.12.19 longcheer zhangjunwei1 end*/
 
 struct aw8624_container {
 	int len;
