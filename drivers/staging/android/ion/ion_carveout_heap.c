@@ -242,6 +242,24 @@ static void ion_sc_heap_free(struct ion_buffer *buffer)
 	kfree(table);
 }
 
+static int ion_secure_carveout_pm_freeze(struct ion_heap *heap)
+{
+	return 0;
+}
+
+static int ion_secure_carveout_pm_restore(struct ion_heap *heap)
+{
+	struct ion_sc_heap *manager;
+	struct ion_sc_entry *child;
+
+	manager = container_of(heap, struct ion_sc_heap, heap);
+
+	list_for_each_entry(child, &manager->children, list)
+		ion_hyp_assign_from_flags(
+			child->base, child->size, child->token);
+	return 0;
+}
+
 static struct ion_heap_ops ion_sc_heap_ops = {
 	.allocate = ion_sc_heap_allocate,
 	.free = ion_sc_heap_free,

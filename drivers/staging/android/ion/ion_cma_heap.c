@@ -276,6 +276,11 @@ static int ion_secure_cma_map_user(struct ion_heap *mapper,
 	return ion_heap_map_user(mapper, buffer, vma);
 }
 
+static int ion_secure_cma_pm_freeze(struct ion_heap *heap)
+{
+	return 0;
+}
+
 static struct ion_heap_ops ion_secure_cma_ops = {
 	.allocate = ion_secure_cma_allocate,
 	.free = ion_secure_cma_free,
