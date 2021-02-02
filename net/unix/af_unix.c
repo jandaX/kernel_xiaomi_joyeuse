@@ -192,15 +192,9 @@ static inline int unix_may_send(struct sock *sk, struct sock *osk)
 	return unix_peer(osk) == NULL || unix_our_peer(sk, osk);
 }
 
-static inline int unix_recvq_full(const struct sock *sk)
+static inline int unix_recvq_full(struct sock const *sk)
 {
 	return skb_queue_len(&sk->sk_receive_queue) > sk->sk_max_ack_backlog;
-}
-
-static inline int unix_recvq_full_lockless(const struct sock *sk)
-{
-	return skb_queue_len_lockless(&sk->sk_receive_queue) >
-		READ_ONCE(sk->sk_max_ack_backlog);
 }
 
 struct sock *unix_peer_get(struct sock *s)
@@ -1302,14 +1296,12 @@ restart:
 	}
 
 	/* Latch our state.
-
 	   It is tricky place. We need to grab our state lock and cannot
 	   drop lock on peer. It is dangerous because deadlock is
 	   possible. Connect to self case and simultaneous
 	   attempt to connect are eliminated by checking socket
 	   state. other is TCP_LISTEN, if sk is TCP_LISTEN we
 	   check this before attempt to grab lock.
-
 	   Well, and we have to recheck the state after socket locked.
 	 */
 	st = sk->sk_state;
@@ -1798,8 +1790,7 @@ restart_locked:
 	 * - unix_peer(sk) == sk by time of get but disconnected before lock
 	 */
 	if (other != sk &&
-	    unlikely(unix_peer(other) != sk &&
-	    unix_recvq_full_lockless(other))) {
+	    unlikely(unix_peer(other) != sk && unix_recvq_full(other))) {
 		if (timeo) {
 			timeo = unix_wait_for_peer(other, timeo);
 
@@ -2194,11 +2185,9 @@ static int unix_dgram_recvmsg(struct socket *sock, struct msghdr *msg,
 		     apparently wrong)
 		   - clone fds (I chose it for now, it is the most universal
 		     solution)
-
 		   POSIX 1003.1g does not actually define this clearly
 		   at all. POSIX 1003.1g doesn't define a lot of things
 		   clearly however!
-
 		*/
 
 		sk_peek_offset_fwd(sk, size);
