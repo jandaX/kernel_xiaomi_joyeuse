@@ -35,8 +35,6 @@
 static DEFINE_HASHTABLE(fscrypt_direct_keys, 6); /* 6 bits = 64 buckets */
 static DEFINE_SPINLOCK(fscrypt_direct_keys_lock);
 
-static struct crypto_shash *essiv_hash_tfm;
-
 /*
  * v1 key derivation function.  This generates the derived key by encrypting the
  * master key with AES-128-ECB using the nonce as the AES key.  This provides a
