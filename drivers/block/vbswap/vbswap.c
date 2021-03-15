@@ -29,7 +29,6 @@ static int vbswap_major;
 static struct gendisk *vbswap_disk;
 static u64 vbswap_disksize;
 static struct page *swap_header_page;
-static bool vbswap_initialized;
 
 /*
  * Check if request is within bounds and aligned on vbswap logical blocks.
@@ -214,56 +213,6 @@ static const struct block_device_operations vbswap_fops = {
 	.owner = THIS_MODULE
 };
 
-static ssize_t disksize_show(struct device *dev,
-			     struct device_attribute *attr, char *buf)
-{
-	return sprintf(buf, "%llu\n", vbswap_disksize);
-}
-
-static ssize_t disksize_store(struct device *dev,
-			      struct device_attribute *attr, const char *buf,
-			      size_t len)
-{
-	int ret;
-	u64 disksize;
-
-	ret = kstrtoull(buf, 10, &disksize);
-	if (ret)
-		return ret;
-
-	if (vbswap_initialized) {
-		pr_err("already initialized (disksize = %llu)\n", vbswap_disksize);
-		return -EBUSY;
-	}
-
-	vbswap_disksize = PAGE_ALIGN(disksize);
-	if (!vbswap_disksize) {
-		pr_err("disksize is invalid (disksize = %llu)\n", vbswap_disksize);
-
-		vbswap_disksize = 0;
-		vbswap_initialized = 0;
-
-		return -EINVAL;
-	}
-
-	set_capacity(vbswap_disk, vbswap_disksize >> SECTOR_SHIFT);
-
-	vbswap_initialized = 1;
-
-	return len;
-}
-
-static DEVICE_ATTR(disksize, S_IRUGO | S_IWUSR, disksize_show, disksize_store);
-
-static struct attribute *vbswap_disk_attrs[] = {
-	&dev_attr_disksize.attr,
-	NULL,
-};
-
-static struct attribute_group vbswap_disk_attr_group = {
-	.attrs = vbswap_disk_attrs,
-};
-
 static int create_device(void)
 {
 	int ret;
@@ -293,7 +242,6 @@ static int create_device(void)
 	vbswap_disk->private_data = NULL;
 	snprintf(vbswap_disk->disk_name, 16, "vbswap%d", 0);
 
-	/* Actual capacity set using sysfs (/sys/block/vbswap<id>/disksize) */
 	set_capacity(vbswap_disk, 0);
 
 	/*
@@ -308,27 +256,16 @@ static int create_device(void)
 	blk_queue_max_hw_sectors(vbswap_disk->queue, PAGE_SIZE / SECTOR_SIZE);
 
 	add_disk(vbswap_disk);
-
 	vbswap_disksize = 0;
-	vbswap_initialized = 0;
-
-	ret = sysfs_create_group(&disk_to_dev(vbswap_disk)->kobj,
-				 &vbswap_disk_attr_group);
-	if (ret < 0) {
-		pr_err("%s %d: Error creating sysfs group\n",
-		       __func__, __LINE__);
-		goto out_free_queue;
-	}
 
 	/* vbswap devices sort of resembles non-rotational disks */
 	queue_flag_set_unlocked(QUEUE_FLAG_NONROT, vbswap_disk->queue);
 	queue_flag_clear_unlocked(QUEUE_FLAG_ADD_RANDOM, vbswap_disk->queue);
 
+	return 0;
+
 out:
 	return ret;
-
-out_free_queue:
-	blk_cleanup_queue(vbswap_disk->queue);
 
 out_put_disk:
 	put_disk(vbswap_disk);
@@ -336,19 +273,11 @@ out_put_disk:
 	return ret;
 }
 
-static void destroy_device(void)
+static void set_disksize(void)
 {
-	if (vbswap_disk)
-		sysfs_remove_group(&disk_to_dev(vbswap_disk)->kobj,
-				   &vbswap_disk_attr_group);
-
-	if (vbswap_disk) {
-		del_gendisk(vbswap_disk);
-		put_disk(vbswap_disk);
-	}
-
-	if (vbswap_disk->queue)
-		blk_cleanup_queue(vbswap_disk->queue);
+	vbswap_disksize = PAGE_ALIGN((u64)SZ_1G * CONFIG_VBSWAP_DISKSIZE);
+	set_capacity(vbswap_disk, vbswap_disksize >> SECTOR_SHIFT);
+	pr_info("created vbswap device with size %llu\n", vbswap_disksize);
 }
 
 static int __init vbswap_init(void)
@@ -369,6 +298,7 @@ static int __init vbswap_init(void)
 		       __func__, __LINE__);
 		goto free_devices;
 	}
+	set_disksize();
 
 	return 0;
 
@@ -378,18 +308,7 @@ out:
 	return ret;
 }
 
-static void __exit vbswap_exit(void)
-{
-	destroy_device();
-
-	unregister_blkdev(vbswap_major, "vbswap");
-
-	if (swap_header_page)
-		__free_page(swap_header_page);
-}
-
-module_init(vbswap_init);
-module_exit(vbswap_exit);
+late_initcall(vbswap_init);
 
 MODULE_LICENSE("GPL v2");
 MODULE_AUTHOR("Park Ju Hyung <qkrwngud825@gmail.com>");
