@@ -823,7 +823,6 @@ static int translate_table(struct net *net, const char *name,
 	unsigned int i, j, k, udc_cnt;
 	int ret;
 	struct ebt_cl_stack *cl_s = NULL; /* used in the checking for chain loops */
-	struct ebt_entry *entry;
 
 	i = 0;
 	while (i < NF_BR_NUMHOOKS && !newinfo->hook_entry[i])
@@ -853,12 +852,12 @@ static int translate_table(struct net *net, const char *name,
 		* newinfo->nentries afterwards
 		*/
 	udc_cnt = 0; /* will hold the nr. of user defined chains (udc) */
-	ebt_entry_foreach(entry, newinfo->entries, newinfo->entries_size) {
-		ret = ebt_check_entry_size_and_hooks(entry, newinfo,
-						     &i, &j, &k, &udc_cnt);
-		if (ret != 0)
-			return ret;
-	}
+	ret = EBT_ENTRY_ITERATE(newinfo->entries, newinfo->entries_size,
+	   ebt_check_entry_size_and_hooks, newinfo,
+	   &i, &j, &k, &udc_cnt);
+
+	if (ret != 0)
+		return ret;
 
 	if (i != j)
 		return -EINVAL;
@@ -893,10 +892,8 @@ static int translate_table(struct net *net, const char *name,
 		if (!cl_s)
 			return -ENOMEM;
 		i = 0; /* the i'th udc */
-		ebt_entry_foreach(entry, newinfo->entries,
-				  newinfo->entries_size)
-			if (ebt_get_udc_positions(entry, newinfo, &i, cl_s) < 0)
-				break;
+		EBT_ENTRY_ITERATE(newinfo->entries, newinfo->entries_size,
+		   ebt_get_udc_positions, newinfo, &i, cl_s);
 		/* sanity check */
 		if (i != udc_cnt) {
 			vfree(cl_s);
@@ -913,7 +910,7 @@ static int translate_table(struct net *net, const char *name,
 				return -EINVAL;
 			}
 
-	/* we now know the following (along with E=mcÂ²):
+	/* we now know the following (along with E=mc²):
 	 *  - the nr of entries in each chain is right
 	 *  - the size of the allocated space is right
 	 *  - all valid hooks have a corresponding chain
@@ -926,18 +923,12 @@ static int translate_table(struct net *net, const char *name,
 
 	/* used to know what we need to clean up if something goes wrong */
 	i = 0;
-	ret = 0;
-	ebt_entry_foreach(entry, newinfo->entries, newinfo->entries_size) {
-		ret = ebt_check_entry(entry, net, newinfo, name, &i,
-				      cl_s, udc_cnt);
-		if (ret != 0)
-			break;
+	ret = EBT_ENTRY_ITERATE(newinfo->entries, newinfo->entries_size,
+	   ebt_check_entry, net, newinfo, name, &i, cl_s, udc_cnt);
+	if (ret != 0) {
+		EBT_ENTRY_ITERATE(newinfo->entries, newinfo->entries_size,
+				  ebt_cleanup_entry, net, &i);
 	}
-	if (ret != 0)
-		ebt_entry_foreach(entry, newinfo->entries,
-				  newinfo->entries_size)
-			if (ebt_cleanup_entry(entry, net, &i) != 0)
-				break;
 	vfree(cl_s);
 	return ret;
 }
@@ -973,7 +964,6 @@ static int do_replace_finish(struct net *net, struct ebt_replace *repl,
 	/* used to be able to unlock earlier */
 	struct ebt_table_info *table;
 	struct ebt_table *t;
-	struct ebt_entry *entry;
 
 	/* the user wants counters back
 	 * the check on the size is done later, when we have the lock
@@ -1040,9 +1030,8 @@ static int do_replace_finish(struct net *net, struct ebt_replace *repl,
 	}
 
 	/* decrease module count and free resources */
-	ebt_entry_foreach(entry, table->entries, table->entries_size)
-		if (ebt_cleanup_entry(entry, net, NULL) != 0)
-			break;
+	EBT_ENTRY_ITERATE(table->entries, table->entries_size,
+			  ebt_cleanup_entry, net, NULL);
 
 	vfree(table->entries);
 	if (table->chainstack) {
@@ -1067,9 +1056,8 @@ static int do_replace_finish(struct net *net, struct ebt_replace *repl,
 free_unlock:
 	mutex_unlock(&ebt_mutex);
 free_iterate:
-	ebt_entry_foreach(entry, newinfo->entries, newinfo->entries_size)
-		if (ebt_cleanup_entry(entry, net, NULL) != 0)
-			break;
+	EBT_ENTRY_ITERATE(newinfo->entries, newinfo->entries_size,
+			  ebt_cleanup_entry, net, NULL);
 free_counterstmp:
 	vfree(counterstmp);
 	/* can be initialized in translate_table() */
@@ -1140,16 +1128,13 @@ free_newinfo:
 
 static void __ebt_unregister_table(struct net *net, struct ebt_table *table)
 {
-	struct ebt_entry *entry;
 	int i;
 
 	mutex_lock(&ebt_mutex);
 	list_del(&table->list);
 	mutex_unlock(&ebt_mutex);
-	ebt_entry_foreach(entry, table->private->entries,
-			  table->private->entries_size)
-		if (ebt_cleanup_entry(entry, net, NULL) != 0)
-			break;
+	EBT_ENTRY_ITERATE(table->private->entries, table->private->entries_size,
+			  ebt_cleanup_entry, net, NULL);
 	if (table->private->nentries)
 		module_put(table->me);
 	vfree(table->private->entries);
@@ -1446,7 +1431,6 @@ static int copy_everything_to_user(struct ebt_table *t, void __user *user,
 	struct ebt_replace tmp;
 	const struct ebt_counter *oldcounters;
 	unsigned int entries_size, nentries;
-	struct ebt_entry *entry;
 	int ret;
 	char *entries;
 
@@ -1481,12 +1465,8 @@ static int copy_everything_to_user(struct ebt_table *t, void __user *user,
 		return ret;
 
 	/* set the match/watcher/target names right */
-	ebt_entry_foreach(entry, entries, entries_size) {
-		ret = ebt_entry_to_user(entry, entries, tmp.entries);
-		if (ret != 0)
-			return ret;
-	}
-	return 0;
+	return EBT_ENTRY_ITERATE(entries, entries_size,
+	   ebt_entry_to_user, entries, tmp.entries);
 }
 
 static int do_ebt_set_ctl(struct sock *sk,
@@ -1822,12 +1802,8 @@ static int compat_table_info(const struct ebt_table_info *info,
 	if (ret)
 		return ret;
 
-	ebt_entry_foreach(entry, entries, size) {
-		ret = compat_calc_entry(entry, info, entries, newinfo);
-		if (ret != 0)
-			return ret;
-	}
-	return 0;
+	return EBT_ENTRY_ITERATE(entries, size, compat_calc_entry, info,
+							entries, newinfo);
 }
 
 static int compat_copy_everything_to_user(struct ebt_table *t,
@@ -1836,7 +1812,6 @@ static int compat_copy_everything_to_user(struct ebt_table *t,
 	struct compat_ebt_replace repl, tmp;
 	struct ebt_counter *oldcounters;
 	struct ebt_table_info tinfo;
-	struct ebt_entry *entry;
 	int ret;
 	void __user *pos;
 
@@ -1883,12 +1858,8 @@ static int compat_copy_everything_to_user(struct ebt_table *t,
 		return ret;
 
 	pos = compat_ptr(tmp.entries);
-	ebt_entry_foreach(entry, tinfo.entries, tinfo.entries_size) {
-		ret = compat_copy_entry_to_user(entry, &pos, &tmp.entries_size);
-		if (ret != 0)
-			return ret;
-	}
-	return 0;
+	return EBT_ENTRY_ITERATE(tinfo.entries, tinfo.entries_size,
+			compat_copy_entry_to_user, &pos, &tmp.entries_size);
 }
 
 struct ebt_entries_buf_state {
@@ -2186,16 +2157,12 @@ static int compat_copy_entries(unsigned char *data, unsigned int size_user,
 				struct ebt_entries_buf_state *state)
 {
 	unsigned int size_remaining = size_user;
-	struct ebt_entry *entry;
 	int ret;
 
-	ebt_entry_foreach(entry, data, size_user) {
-		ret = size_entry_mwt(entry, data, &size_remaining, state);
-		if (ret != 0)
-			return ret;
-	}
-	if (size_remaining)
-		return -EINVAL;
+	ret = EBT_ENTRY_ITERATE(data, size_user, size_entry_mwt, data,
+					&size_remaining, state);
+	if (ret < 0)
+		return ret;
 
 	if (size_remaining)
 		return -EINVAL;
