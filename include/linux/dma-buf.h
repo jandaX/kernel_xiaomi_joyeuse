@@ -434,6 +434,8 @@ struct dma_buf {
 	} cb_excl, cb_shared;
 
 	struct list_head refs;
+	atomic_t dent_count;
+
 };
 
 /**
