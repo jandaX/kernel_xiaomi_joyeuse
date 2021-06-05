@@ -189,13 +189,6 @@ enum print_reason {
 #define DCIN_ICL_STEP_UA		100000
 #define INDIA_CURRENT		3000000
 
-/* defined for qc2_unsupported */
-#define QC2_UNSUPPORTED_UA              1800000
-
-/* used for bq charge pump solution */
-#define MAIN_CHG_VOTER			"MAIN_CHG_VOTER"
-#define HVDCP3_START_ICL_VOTER	"HVDCP3_START_ICL_VOTER"
-
 #define ROLE_REVERSAL_DELAY_MS		2000
 
 /* six pin new battery step charge micros */
