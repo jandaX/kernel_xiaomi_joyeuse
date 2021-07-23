@@ -2426,10 +2426,8 @@ int smblib_get_prop_batt_status(struct smb_charger *chg,
 				rc);
 			return rc;
 	}
-
 	stat &= ENABLE_TRICKLE_BIT | ENABLE_PRE_CHARGING_BIT |
 						ENABLE_FULLON_MODE_BIT;
-
 	if (!stat)
 		val->intval = POWER_SUPPLY_STATUS_NOT_CHARGING;*/
 
