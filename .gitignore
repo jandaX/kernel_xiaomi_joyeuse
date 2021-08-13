@@ -128,3 +128,7 @@ kernel/configs/android-*.cfg
 
 # Ignore out dir
 out/
+
+# Ignore build.log
+build.log
+build.txt
