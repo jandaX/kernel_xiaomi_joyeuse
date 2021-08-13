@@ -133,3 +133,7 @@ Android.bp
 
 # Ignore out dir
 out/
+
+# Ignore build.log
+build.log
+build.txt
