@@ -149,7 +149,7 @@ struct ffs_epfile {
 
 	/*
 	 * Buffer for holding data from partial reads which may happen since
-	 * we’re rounding user read requests to a multiple of a max packet size.
+	 * we�re rounding user read requests to a multiple of a max packet size.
 	 *
 	 * The pointer is initialised with NULL value and may be set by
 	 * __ffs_epfile_read_data function to point to a temporary buffer.
@@ -173,34 +173,34 @@ struct ffs_epfile {
 	 *
 	 * == State transitions ==
 	 *
-	 * • ptr == NULL:  (initial state)
-	 *   ◦ __ffs_epfile_read_buffer_free: go to ptr == DROP
-	 *   ◦ __ffs_epfile_read_buffered:    nop
-	 *   ◦ __ffs_epfile_read_data allocates temp buffer: go to ptr == buf
-	 *   ◦ reading finishes:              n/a, not in ‘and reading’ state
-	 * • ptr == DROP:
-	 *   ◦ __ffs_epfile_read_buffer_free: nop
-	 *   ◦ __ffs_epfile_read_buffered:    go to ptr == NULL
-	 *   ◦ __ffs_epfile_read_data allocates temp buffer: free buf, nop
-	 *   ◦ reading finishes:              n/a, not in ‘and reading’ state
-	 * • ptr == buf:
-	 *   ◦ __ffs_epfile_read_buffer_free: free buf, go to ptr == DROP
-	 *   ◦ __ffs_epfile_read_buffered:    go to ptr == NULL and reading
-	 *   ◦ __ffs_epfile_read_data:        n/a, __ffs_epfile_read_buffered
+	 * � ptr == NULL:  (initial state)
+	 *   ? __ffs_epfile_read_buffer_free: go to ptr == DROP
+	 *   ? __ffs_epfile_read_buffered:    nop
+	 *   ? __ffs_epfile_read_data allocates temp buffer: go to ptr == buf
+	 *   ? reading finishes:              n/a, not in �and reading� state
+	 * � ptr == DROP:
+	 *   ? __ffs_epfile_read_buffer_free: nop
+	 *   ? __ffs_epfile_read_buffered:    go to ptr == NULL
+	 *   ? __ffs_epfile_read_data allocates temp buffer: free buf, nop
+	 *   ? reading finishes:              n/a, not in �and reading� state
+	 * � ptr == buf:
+	 *   ? __ffs_epfile_read_buffer_free: free buf, go to ptr == DROP
+	 *   ? __ffs_epfile_read_buffered:    go to ptr == NULL and reading
+	 *   ? __ffs_epfile_read_data:        n/a, __ffs_epfile_read_buffered
 	 *                                    is always called first
-	 *   ◦ reading finishes:              n/a, not in ‘and reading’ state
-	 * • ptr == NULL and reading:
-	 *   ◦ __ffs_epfile_read_buffer_free: go to ptr == DROP and reading
-	 *   ◦ __ffs_epfile_read_buffered:    n/a, mutex is held
-	 *   ◦ __ffs_epfile_read_data:        n/a, mutex is held
-	 *   ◦ reading finishes and …
-	 *     … all data read:               free buf, go to ptr == NULL
-	 *     … otherwise:                   go to ptr == buf and reading
-	 * • ptr == DROP and reading:
-	 *   ◦ __ffs_epfile_read_buffer_free: nop
-	 *   ◦ __ffs_epfile_read_buffered:    n/a, mutex is held
-	 *   ◦ __ffs_epfile_read_data:        n/a, mutex is held
-	 *   ◦ reading finishes:              free buf, go to ptr == DROP
+	 *   ? reading finishes:              n/a, not in �and reading� state
+	 * � ptr == NULL and reading:
+	 *   ? __ffs_epfile_read_buffer_free: go to ptr == DROP and reading
+	 *   ? __ffs_epfile_read_buffered:    n/a, mutex is held
+	 *   ? __ffs_epfile_read_data:        n/a, mutex is held
+	 *   ? reading finishes and �
+	 *     � all data read:               free buf, go to ptr == NULL
+	 *     � otherwise:                   go to ptr == buf and reading
+	 * � ptr == DROP and reading:
+	 *   ? __ffs_epfile_read_buffer_free: nop
+	 *   ? __ffs_epfile_read_buffered:    n/a, mutex is held
+	 *   ? __ffs_epfile_read_data:        n/a, mutex is held
+	 *   ? reading finishes:              free buf, go to ptr == DROP
 	 */
 	struct ffs_buffer		*read_buffer;
 #define READ_BUFFER_DROP ((struct ffs_buffer *)ERR_PTR(-ESHUTDOWN))
@@ -260,8 +260,8 @@ EXPORT_SYMBOL_GPL(ffs_lock);
 static struct ffs_dev *_ffs_find_dev(const char *name);
 static struct ffs_dev *_ffs_alloc_dev(void);
 static void _ffs_free_dev(struct ffs_dev *dev);
-static void *ffs_acquire_dev(const char *dev_name);
-static void ffs_release_dev(struct ffs_data *ffs_data);
+static int ffs_acquire_dev(const char *dev_name, struct ffs_data *ffs_data);
+static void ffs_release_dev(struct ffs_dev *ffs_dev);
 static int ffs_ready(struct ffs_data *ffs);
 static void ffs_closed(struct ffs_data *ffs);
 
@@ -782,7 +782,7 @@ static ssize_t ffs_copy_to_iter(void *data, int data_len, struct iov_iter *iter)
 	 * internally uses a larger, aligned buffer so that such UDCs are happy.
 	 *
 	 * Unfortunately, this means that host may send more data than was
-	 * requested in read(2) system call.  f_fs doesn’t know what to do with
+	 * requested in read(2) system call.  f_fs doesn�t know what to do with
 	 * that excess data so it simply drops it.
 	 *
 	 * Was the buffer aligned in the first place, no such problem would
@@ -790,7 +790,7 @@ static ssize_t ffs_copy_to_iter(void *data, int data_len, struct iov_iter *iter)
 	 *
 	 * Data may be dropped only in AIO reads.  Synchronous reads are handled
 	 * by splitting a request into multiple parts.  This splitting may still
-	 * be a problem though so it’s likely best to align the buffer
+	 * be a problem though so it�s likely best to align the buffer
 	 * regardless of it being AIO or not..
 	 *
 	 * This only affects OUT endpoints, i.e. reading data with a read(2),
@@ -991,7 +991,7 @@ static ssize_t ffs_epfile_io(struct file *file, struct ffs_io_data *io_data)
 		/*
 		 * Do we have buffered data from previous partial read?  Check
 		 * that for synchronous case only because we do not have
-		 * facility to ‘wake up’ a pending asynchronous read and push
+		 * facility to �wake up� a pending asynchronous read and push
 		 * buffered data to it which we would need to make things behave
 		 * consistently.
 		 */
@@ -1101,8 +1101,6 @@ static ssize_t ffs_epfile_io(struct file *file, struct ffs_io_data *io_data)
 			}
 		}
 
-		ffs_log("ep status %d for req %pK", ep->status, req);
-
 		if (interrupted) {
 			ret = -EINTR;
 			goto error_mutex;
@@ -1115,8 +1113,10 @@ static ssize_t ffs_epfile_io(struct file *file, struct ffs_io_data *io_data)
 		 * disabled (disconnect) or changed
 		 * (composition switch) ?
 		 */
-		if (epfile->ep == ep)
+		if (epfile->ep == ep) {
 			ret = ep->status;
+			ffs_log("ep status %d for req %pK", ep->status, req);
+		}
 		spin_unlock_irq(&epfile->ffs->eps_lock);
 		if (io_data->read && ret > 0)
 			ret = __ffs_epfile_read_data(epfile, data, ep->status,
@@ -1664,7 +1664,6 @@ ffs_fs_mount(struct file_system_type *t, int flags,
 	};
 	struct dentry *rv;
 	int ret;
-	void *ffs_dev;
 	struct ffs_data	*ffs;
 
 	ENTER();
@@ -1685,20 +1684,16 @@ ffs_fs_mount(struct file_system_type *t, int flags,
 		return ERR_PTR(-ENOMEM);
 	}
 
-	ffs_dev = ffs_acquire_dev(dev_name);
-	if (IS_ERR(ffs_dev)) {
+	ret = ffs_acquire_dev(dev_name, ffs);
+	if (ret) {
 		ffs_data_put(ffs);
-		return ERR_CAST(ffs_dev);
+		return ERR_PTR(ret);
 	}
-	ffs->private_data = ffs_dev;
 	data.ffs_data = ffs;
 
 	rv = mount_nodev(t, flags, &data, ffs_sb_fill);
-	if (IS_ERR(rv) && data.ffs_data) {
-		ffs_release_dev(data.ffs_data);
+	if (IS_ERR(rv) && data.ffs_data)
 		ffs_data_put(data.ffs_data);
-	}
-
 	return rv;
 }
 
@@ -1708,10 +1703,8 @@ ffs_fs_kill_sb(struct super_block *sb)
 	ENTER();
 
 	kill_litter_super(sb);
-	if (sb->s_fs_info) {
-		ffs_release_dev(sb->s_fs_info);
+	if (sb->s_fs_info)
 		ffs_data_closed(sb->s_fs_info);
-	}
 }
 
 static struct file_system_type ffs_fs_type = {
@@ -1788,6 +1781,7 @@ static void ffs_data_put(struct ffs_data *ffs)
 	if (unlikely(refcount_dec_and_test(&ffs->ref))) {
 		pr_info("%s(): freeing\n", __func__);
 		ffs_data_clear(ffs);
+    ffs_release_dev(ffs->private_data);
 		BUG_ON(waitqueue_active(&ffs->ev.waitq) ||
 		       waitqueue_active(&ffs->ep0req_completion.wait) ||
 		       waitqueue_active(&ffs->wait));
@@ -3188,7 +3182,8 @@ static inline struct f_fs_opts *ffs_do_functionfs_bind(struct usb_function *f,
 	struct ffs_function *func = ffs_func_from_usb(f);
 	struct f_fs_opts *ffs_opts =
 		container_of(f->fi, struct f_fs_opts, func_inst);
-	struct ffs_data *ffs = ffs_opts->dev->ffs_data;
+	struct ffs_data *ffs = ffs_opts->dev->ffs_data;	
+	struct ffs_data *ffs_data;
 	int ret;
 
 	ENTER();
@@ -3203,13 +3198,14 @@ static inline struct f_fs_opts *ffs_do_functionfs_bind(struct usb_function *f,
 	if (!ffs_opts->no_configfs)
 		ffs_dev_lock();
 	ret = ffs_opts->dev->desc_ready ? 0 : -ENODEV;
-	func->ffs = ffs_opts->dev->ffs_data;
+	ffs_data = ffs_opts->dev->ffs_data;
 	if (!ffs_opts->no_configfs)
 		ffs_dev_unlock();
 	if (ret)
 		return ERR_PTR(ret);
 
-	func->conf = c;
+	func->ffs = ffs_data;
+  func->conf = c;
 	func->gadget = c->cdev->gadget;
 
 	/*
@@ -3339,8 +3335,7 @@ static int _ffs_func_bind(struct usb_configuration *c,
 	}
 
 	if (likely(super)) {
-		func->function.ss_descriptors = func->function.ssp_descriptors =
-			vla_ptr(vlabuf, d, ss_descs);
+		func->function.ss_descriptors = vla_ptr(vlabuf, d, ss_descs);
 		ss_len = ffs_do_descs(ffs, ffs->ss_descs_count,
 				vla_ptr(vlabuf, d, raw_descs) + fs_len + hs_len,
 				d_raw_descs__sz - fs_len - hs_len,
@@ -3714,6 +3709,7 @@ static void ffs_free_inst(struct usb_function_instance *f)
 	struct f_fs_opts *opts;
 
 	opts = to_f_fs_opts(f);
+  ffs_release_dev(opts->dev);
 	ffs_dev_lock();
 	_ffs_free_dev(opts->dev);
 	ffs_dev_unlock();
@@ -3910,50 +3906,51 @@ static void _ffs_free_dev(struct ffs_dev *dev)
 {
 	list_del(&dev->entry);
 
-	/* Clear the private_data pointer to stop incorrect dev access */
-	if (dev->ffs_data)
-		dev->ffs_data->private_data = NULL;
-
 	kfree(dev);
 	if (list_empty(&ffs_devices))
 		functionfs_cleanup();
 }
 
-static void *ffs_acquire_dev(const char *dev_name)
+static int ffs_acquire_dev(const char *dev_name, struct ffs_data *ffs_data)
 {
-	struct ffs_dev *ffs_dev;
+	int ret = 0;
+  struct ffs_dev *ffs_dev;
 
 	ENTER();
 
 	ffs_dev_lock();
 
 	ffs_dev = _ffs_find_dev(dev_name);
-	if (!ffs_dev)
-		ffs_dev = ERR_PTR(-ENOENT);
-	else if (ffs_dev->mounted)
-		ffs_dev = ERR_PTR(-EBUSY);
-	else if (ffs_dev->ffs_acquire_dev_callback &&
-	    ffs_dev->ffs_acquire_dev_callback(ffs_dev))
-		ffs_dev = ERR_PTR(-ENOENT);
-	else
+	if (!ffs_dev) {
+		ret = -ENOENT;
+	} else if (ffs_dev->mounted) {
+		ret = -EBUSY;
+	} else if (ffs_dev->ffs_acquire_dev_callback &&
+		   ffs_dev->ffs_acquire_dev_callback(ffs_dev)) {
+		ret = -ENOENT;
+	} else {
 		ffs_dev->mounted = true;
+    ffs_dev->ffs_data = ffs_data;
+		ffs_data->private_data = ffs_dev;
+	}
 
 	ffs_dev_unlock();
 
-	return ffs_dev;
+	return ret;
 }
 
-static void ffs_release_dev(struct ffs_data *ffs_data)
+static void ffs_release_dev(struct ffs_dev *ffs_dev)
 {
-	struct ffs_dev *ffs_dev;
-
 	ENTER();
 
 	ffs_dev_lock();
 
-	ffs_dev = ffs_data->private_data;
-	if (ffs_dev) {
+	if (ffs_dev && ffs_dev->mounted) {
 		ffs_dev->mounted = false;
+    if (ffs_dev->ffs_data) {
+			ffs_dev->ffs_data->private_data = NULL;
+			ffs_dev->ffs_data = NULL;
+		}
 
 		if (ffs_dev->ffs_release_dev_callback)
 			ffs_dev->ffs_release_dev_callback(ffs_dev);
@@ -3984,7 +3981,6 @@ static int ffs_ready(struct ffs_data *ffs)
 	}
 
 	ffs_obj->desc_ready = true;
-	ffs_obj->ffs_data = ffs;
 
 	if (ffs_obj->ffs_ready_callback) {
 		ret = ffs_obj->ffs_ready_callback(ffs);
@@ -4018,7 +4014,6 @@ static void ffs_closed(struct ffs_data *ffs)
 		goto done;
 
 	ffs_obj->desc_ready = false;
-	ffs_obj->ffs_data = NULL;
 
 	if (test_and_clear_bit(FFS_FL_CALL_CLOSED_CALLBACK, &ffs->flags) &&
 	    ffs_obj->ffs_closed_callback)

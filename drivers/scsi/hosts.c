@@ -212,6 +212,9 @@ int scsi_add_host_with_dma(struct Scsi_Host *shost, struct device *dev,
 			     "can_queue = 0 no longer supported\n");
 		goto fail;
 	}
+ 
+  shost->cmd_per_lun = min_t(short, shost->cmd_per_lun,
+				   shost->can_queue);
 
 	error = scsi_init_sense_cache(shost);
 	if (error)
@@ -499,7 +502,8 @@ struct Scsi_Host *scsi_host_alloc(struct scsi_host_template *sht, int privsize)
 		shost_printk(KERN_WARNING, shost,
 			"error handler thread failed to spawn, error = %ld\n",
 			PTR_ERR(shost->ehandler));
-		goto fail;
+		shost->ehandler = NULL;
+    goto fail;
 	}
 
 	shost->tmf_work_q = alloc_workqueue("scsi_tmf_%d",
