@@ -5289,6 +5289,7 @@ CONFIG_STM=y
 # CONFIG_TEE is not set
 CONFIG_SENSORS_SSC=y
 # CONFIG_ESOC is not set
+CONFIG_AINUR_DTS_SW=y
 
 #
 # Firmware Drivers
