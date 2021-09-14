@@ -28,8 +28,8 @@ jobs:
         defconfig: joyeuse_defconfig
         image: Image.gz-dtb
 
-    - name: Release build
-      uses: ncipollo/release-action@v1
+    - name: Create Release
+      uses: ncipollo/release-action@v1.8.9
       with:
         artifacts: ${{ steps.build.outputs.outfile }}
         token: ${{ secrets.GITHUB_TOKEN }}
