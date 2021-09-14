@@ -21,7 +21,7 @@ jobs:
       uses: lemniskett/android-kernel-actions@master
       id: build
       env:
-        NAME: Xiaomi Kernel
+        NAME: xiaomi-kernel
       with:
         arch: arm64
         compiler: aosp-clang/master/clang-r433403
@@ -31,5 +31,6 @@ jobs:
       uses: ncipollo/release-action@v1.8.9
       with:
         artifacts: "zipper/*"
-        tag: v1.0.0
+        name: "Xiaomi Kernel **Joyeuse**"
+        tag: v4.14
         token: ${{ secrets.GITHUB_TOKEN }}
