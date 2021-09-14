@@ -29,9 +29,7 @@ jobs:
         image: Image.gz-dtb
 
     - name: Release build
-      uses: appleboy/telegram-action@master
-      with:
-        to: ${{ secrets.CHANNEL_ID }}
-        token: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-        message: Kernel is built!, took ${{ steps.build.outputs.elapsed_time }} seconds.
-        document: ${{ steps.build.outputs.outfile }}
+  uses: ncipollo/release-action@v1
+  with:
+    artifacts: ${{ steps.build.outputs.outfile }}
+    token: ${{ secrets.GITHUB_TOKEN }}
