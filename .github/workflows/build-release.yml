@@ -31,4 +31,6 @@ jobs:
       uses: ncipollo/release-action@v1.8.9
       with:
         artifacts: ${{ steps.build.outputs.outfile }}
+        name: Xiaomi Joyeuse Kernel
+        tag: v1.0.0
         token: ${{ secrets.GITHUB_TOKEN }}
