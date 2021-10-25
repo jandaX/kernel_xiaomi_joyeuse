@@ -1272,6 +1272,14 @@ static int ib_prctl_set(struct task_struct *task, unsigned long ctrl)
 		 * spectre_v2_user_stibp == SPECTRE_V2_USER_STRICT_PREFERRED.
 		 */
 		if (!is_spec_ib_user_controlled() ||
+		 * Indirect branch speculation is always disabled in strict
+		 * mode. It can neither be enabled if it was force-disabled
+		 * by a  previous prctl call.
+
+		 */
+		if (spectre_v2_user_ibpb == SPECTRE_V2_USER_STRICT ||
+		    spectre_v2_user_stibp == SPECTRE_V2_USER_STRICT ||
+		    spectre_v2_user_stibp == SPECTRE_V2_USER_STRICT_PREFERRED ||
 		    task_spec_ib_force_disable(task))
 			return -EPERM;
 
