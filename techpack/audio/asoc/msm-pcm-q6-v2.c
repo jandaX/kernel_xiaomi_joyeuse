@@ -1398,6 +1398,7 @@ static int msm_pcm_volume_ctl_get(struct snd_kcontrol *kcontrol,
 	}
 
 	substream = vol->pcm->streams[SNDRV_PCM_STREAM_PLAYBACK].substream;
+
 	if (!substream) {
 		pr_err("%s substream not found\n", __func__);
 		return -ENODEV;
