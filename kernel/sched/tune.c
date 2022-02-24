@@ -155,11 +155,6 @@ static inline void init_sched_boost(struct schedtune *st)
 	st->colocate_update_disabled = false;
 }
 
-bool same_schedtune(struct task_struct *tsk1, struct task_struct *tsk2)
-{
-	return task_schedtune(tsk1) == task_schedtune(tsk2);
-}
-
 void update_cgroup_boost_settings(void)
 {
 	int i;
@@ -189,9 +184,18 @@ void restore_cgroup_boost_settings(void)
 
 bool task_sched_boost(struct task_struct *p)
 {
-	struct schedtune *st = task_schedtune(p);
+	struct schedtune *st;
+	bool enabled;
 
-	return st->sched_boost_enabled;
+	if (unlikely(!schedtune_initialized))
+		return false;
+
+	rcu_read_lock();
+	st = task_schedtune(p);
+	enabled = st->sched_boost_enabled;
+	rcu_read_unlock();
+
+	return enabled;
 }
 
 static u64
@@ -478,6 +482,23 @@ static int sched_colocate_write(struct cgroup_subsys_state *css,
 	return 0;
 }
 
+bool schedtune_task_colocated(struct task_struct *p)
+{
+	struct schedtune *st;
+	bool colocated;
+
+	if (unlikely(!schedtune_initialized))
+		return false;
+
+	/* Get task boost value */
+	rcu_read_lock();
+	st = task_schedtune(p);
+	colocated = st->colocate;
+	rcu_read_unlock();
+
+	return colocated;
+}
+
 #else /* CONFIG_SCHED_WALT */
 
 static inline void init_sched_boost(struct schedtune *st) { }
@@ -616,9 +637,6 @@ int schedtune_prefer_idle(struct task_struct *p)
 static u64
 prefer_idle_read(struct cgroup_subsys_state *css, struct cftype *cft)
 {
-	if (is_battery_saver_on())
-		return 0;
-
 	struct schedtune *st = css_st(css);
 
 	if (is_battery_saver_on())
@@ -640,9 +658,6 @@ prefer_idle_write(struct cgroup_subsys_state *css, struct cftype *cft,
 static s64
 boost_read(struct cgroup_subsys_state *css, struct cftype *cft)
 {
-	if (is_battery_saver_on())
-		return 0;
-
 	struct schedtune *st = css_st(css);
 
 	if (is_battery_saver_on())
