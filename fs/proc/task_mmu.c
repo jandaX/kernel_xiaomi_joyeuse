@@ -367,22 +367,22 @@ show_map_vma(struct seq_file *m, struct vm_area_struct *vma, int is_pid)
 	if (file) {
 		struct inode *inode = file_inode(vma->vm_file);
 #ifdef CONFIG_KSU_SUSFS_SUS_MAP
-		if (unlikely(inode->i_mapping->flags & BIT_SUS_MAPS) && susfs_is_current_proc_umounted()) {
-			seq_setwidth(m, 25 + sizeof(void *) * 6 - 1);
-			seq_put_hex_ll(m, NULL, vma->vm_start, 8);
-			seq_put_hex_ll(m, "-", vma->vm_end, 8);
-			seq_putc(m, ' ');
-			seq_putc(m, '-');
-			seq_putc(m, '-');
-			seq_putc(m, '-');
-			seq_putc(m, 'p');
-			seq_put_hex_ll(m, " ", pgoff, 8);
-			seq_put_hex_ll(m, " ", MAJOR(dev), 2);
-			seq_put_hex_ll(m, ":", MINOR(dev), 2);
-			seq_put_decimal_ull(m, " ", ino);
-			seq_putc(m, ' ');
-			goto done;
-		}
+	if (unlikely(inode->i_mapping->flags & BIT_SUS_MAPS) && susfs_is_current_proc_umounted()) {
+		seq_setwidth(m, 25 + sizeof(void *) * 6 - 1);
+		seq_printf(m, "%08llx", (unsigned long long)vma->vm_start);
+		seq_printf(m, "-%08llx", (unsigned long long)vma->vm_end);	
+		seq_putc(m, ' ');
+		seq_putc(m, '-');
+		seq_putc(m, '-');
+		seq_putc(m, '-');
+		seq_putc(m, 'p');	
+		seq_printf(m, " %08llx", (unsigned long long)pgoff);
+		seq_printf(m, " %02x", MAJOR(dev));
+		seq_printf(m, ":%02x", MINOR(dev));
+		seq_put_decimal_ull(m, " ", ino);
+		seq_putc(m, ' ');
+		goto done;
+	}
 #endif
 #ifdef CONFIG_KSU_SUSFS_SUS_KSTAT
 		if (unlikely(inode->i_mapping->flags & BIT_SUS_KSTAT)) {
